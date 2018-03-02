@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="FrontierPartitioner:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/FrontierPartitioner_jar</output-path>
+    <root id="archive" name="FrontierPartitioner.jar">
+      <element id="module-output" name="FrontierPartitioner" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../SeatsOptimizer/lib/javacsv-2.0.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="/opt/ibm/ILOG/CPLEX_Studio1271/cplex/lib/cplex.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
