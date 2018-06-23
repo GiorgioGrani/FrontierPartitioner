@@ -25,11 +25,22 @@ public class FPProblem {
     private static Map<String, Double> val;
     //public static double eps = 10e-8;
 
-    public FPProblem(double [][] objectives, double [][] matrixA, double[] b,boolean[] binary, int norm) throws IloException {
+    public FPProblem(double [][] objectives, double [][] matrixA,
+                     double[] b,boolean[] binary,
+                     int norm, int [] directions) throws IloException {
         this.norm = norm;
         this.nodes = 1;
         this.infnodes = 0;
-        this.basicFilling(objectives,  matrixA, b, binary);
+        this.basicFilling(objectives,  matrixA, b, binary, directions);
+        this.solverSettings();
+    }
+    public FPProblem(double [][] objectives, double [][] matrixA,
+                      double[] b,double[] lower, double[] upper,
+                      int norm, int [] directions) throws IloException {
+        this.norm = norm;
+        this.nodes = 1;
+        this.infnodes = 0;
+        this.basicFilling(objectives,  matrixA, b, lower, upper, directions);
         this.solverSettings();
     }
 
@@ -40,16 +51,63 @@ public class FPProblem {
     }
 
 
-    private void basicFilling(double [][] objectives, double [][] matrixA, double[] b, boolean[] binary) throws IloException{
+    private void basicFilling(double [][] objectives, double [][] matrixA,
+                              double[] b, boolean[] binary, int [] directions) throws IloException{
         this.cplex = new IloCplex();
+        this.model = this.cplex.getModel();
+
+
         this.vars  = new TreeMap<>();
         this.createVariable(objectives[0].length, binary);
-        this.constraints = new TreeMap<>();
-        this.createConstraints(matrixA, b);
-        this.objectives = new TreeMap<>();
         this.val = new TreeMap<>();
+        this.objectives = new TreeMap<>();
         this.createObjectives(objectives);
+
+
+        //todo eliminare dopo aver generato tutti i file
+        IloAddable obj1 = this.cplex.addMinimize(this.objectives.get("objective0"));
+        IloAddable obj2 = this.cplex.addEq(this.objectives.get("objective1"),0d);
+
+
+        this.constraints = new TreeMap<>();
+        this.createConstraints(matrixA, b, directions);
+
+//long start = System.currentTimeMillis();
+        //this.cplex.exportModel("/home/giorgiograni/Downloads/BBM/lps/"+System.currentTimeMillis()+".lp");
+//System.out.println((System.currentTimeMillis()-start)/1000   +"  time");
+        this.model.remove(obj1);
+        this.model.remove(obj2);
+
+        this.level = 0;
+        this.setObjective();
+    }
+    private void basicFilling(double [][] objectives, double [][] matrixA,
+                              double[] b, double[] lower, double[] upper, int [] directions) throws IloException{
+        this.cplex = new IloCplex();
         this.model = this.cplex.getModel();
+
+//System.out.println(objectives.length+"  "+objectives[0].length);
+        this.vars  = new TreeMap<>();
+        this.createVariable(objectives[0].length, lower, upper);
+        this.val = new TreeMap<>();
+        this.objectives = new TreeMap<>();
+        this.createObjectives(objectives);
+
+
+        //todo eliminare dopo aver generato tutti i file
+        IloAddable obj1 = this.cplex.addMinimize(this.objectives.get("objective0"));
+        IloAddable obj2 = this.cplex.addEq(this.objectives.get("objective1"),0d);
+
+
+        this.constraints = new TreeMap<>();
+        this.createConstraints(matrixA, b, directions);
+
+//long start = System.currentTimeMillis();
+        //this.cplex.exportModel("/home/giorgiograni/Downloads/BBM/lps/"+System.currentTimeMillis()+".lp");
+//System.out.println((System.currentTimeMillis()-start)/1000   +"  time");
+        this.model.remove(obj1);
+        this.model.remove(obj2);
+
         this.level = 0;
         this.setObjective();
     }
@@ -64,18 +122,46 @@ public class FPProblem {
             }
         }
     }
+    private void createVariable(int n, double [] lower, double [] upper) throws IloException{
+        for(int i = 0; i < n; i++){
+            String s = "x"+(i+1);
+            if(upper[i] == 1 && lower[i] == 0){
+                this.vars.put(s, this.cplex.boolVar());
+            }else {
+               // System.out.println(i+") "+Math.round(upper[i]-1));
+                this.vars.put(s, this.cplex.intVar((int) Math.round(lower[i]),
+                                                   (int) Math.round(upper[i])-1));
+            }
+//            if(Math.round(upper[i]) < 0){
+//                System.out.println(i+") "+Math.round(upper[i]));
+//            }
+        }
 
-    private void createConstraints(double [][] matrixA, double[] b) throws IloException{
+    }
+
+    private void createConstraints(double [][] matrixA, double[] b, int [] directions) throws IloException{
         for(int i = 0; i < matrixA.length; i++){
             IloLinearNumExpr expr = this.cplex.linearNumExpr();
             int j = 0;
             for(String s : this.vars.keySet()){
-                expr.addTerm(matrixA[i][j], this.vars.get(s));
+                if(Math.abs(matrixA[i][j]) > 0d) {
+                    expr.addTerm(matrixA[i][j], this.vars.get(s));
+                }
                 j++;
             }
-            IloAddable con = this.cplex.addLe(expr, b[i]);
-            String s = "con"+i;
-            this.constraints.put(s, con);
+            if(directions[i] < 0) {
+                IloAddable con = this.cplex.addLe(expr, b[i]);
+                String s = "con" + i;
+                this.constraints.put(s, con);
+            }else if (directions[i] == 0) {
+                IloAddable con = this.cplex.addEq(expr, b[i]);
+                String s = "con" + i;
+                this.constraints.put(s, con);
+            }else if(directions[i] > 0) {
+                IloAddable con = this.cplex.addGe(expr, b[i]);
+                String s = "con" + i;
+                this.constraints.put(s, con);
+            }
         }
     }
 
@@ -97,6 +183,7 @@ public class FPProblem {
     }
 
     private boolean setObjective() throws IloException{
+
          if(this.norm == 1){
             IloNumExpr expr = this.cplex.linearNumExpr();
             int h = 1;
@@ -122,6 +209,7 @@ public class FPProblem {
         this.cplex.setOut(null);
         this.cplex.setParam(IloCplex.IntParam.AdvInd, 0);
         this.cplex.setParam(IloCplex.DoubleParam.EpGap, 1e-9);
+        this.cplex.setParam(IloCplex.Param.Threads, 1);
     }
 
     public boolean solve() throws IloException{
@@ -150,6 +238,7 @@ public class FPProblem {
         this.model.remove(this.localconstraint);
     }
 
+
     public List< IloAddable> branchOn() throws IloException{
         List<IloAddable> ret = new ArrayList<>();
         for(String s : this.pareto.keySet()){
@@ -159,6 +248,7 @@ public class FPProblem {
             ret.add(con);
             this.model.remove(con);
         }
+        System.out.println(ret.size());
         return ret;
     }
 

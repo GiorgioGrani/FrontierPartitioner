@@ -36,17 +36,41 @@ public class FPAlg {
 
 
     public List<Object> solve(double [][] objectives,
-                                                   double [][] matrixA, double[] b, boolean [] binary
+                              double [][] matrixA, double[] b,
+                              boolean [] binary, int[] directions
     ) throws IloException{
         int nmodeint = this.codifyNorm();
 
 
-        FPProblem root = new FPProblem(objectives, matrixA, b,binary, nmodeint);
+        FPProblem root = new FPProblem(objectives, matrixA, b,binary, nmodeint, directions);
         List<Map<String, Double>> Y = new ArrayList<>();
 
         long start = System.currentTimeMillis();
         root.iterate(Y);
         long end = System.currentTimeMillis();
+
+        List<Object> ret = new ArrayList<>();
+        ret.add(0,Y);
+        ret.add(1,(root.getNodes()));
+        ret.add(2,(end - start+ 0.0)/1000d);
+
+        return ret;
+    }
+
+    public List<Object> solve(double [][] objectives,
+                               double [][] matrixA, double[] b,
+                              double[] lower, double[] upper, int [] directions
+    ) throws IloException{
+        int nmodeint = this.codifyNorm();
+
+
+        FPProblem root = new FPProblem(objectives, matrixA, b, lower, upper, nmodeint, directions);
+        List<Map<String, Double>> Y = new ArrayList<>();
+
+        long start = System.currentTimeMillis();
+        root.iterate(Y);
+        long end = System.currentTimeMillis();
+        FPAlg.printFrontierCsv(Y,true);
 
         List<Object> ret = new ArrayList<>();
         ret.add(0,Y);
