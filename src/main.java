@@ -6,6 +6,7 @@ import com.csvreader.*;
 import java.io.FileWriter;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Random;
 
 public class main {
     public static double eps = 10e-8;
@@ -15,11 +16,12 @@ public class main {
         String inputfile = args[1];
         String inputname = args[2];
         String outputfolder = args[3];
+        boolean quad = Boolean.parseBoolean(args[4]);
         //boolean consider_matrix = Boolean.parseBoolean(args[4]);
         //int nstat = Integer.parseInt(args[5]);
 
         try {
-            main.upperRuns( type, inputfile,inputname, outputfolder);
+            main.upperRuns( type, inputfile,inputname, outputfolder, quad);
         }catch (IOException e){
             System.out.println("ERROR something is wrong with the Input/Output");
             e.printStackTrace();
@@ -518,7 +520,7 @@ public class main {
 
     public static void upperRuns( String type,String inputfile,
                                  String inputname,
-                                 String outputfolder) throws IOException{
+                                 String outputfolder, boolean quad) throws IOException{
         String output = outputfolder +"Stats.csv";
 
         String outputkh = outputfolder + File.separator+"SingleRun_"+inputname+"_Results.csv";
@@ -537,7 +539,7 @@ public class main {
             outputWriterkh.endRecord();
         }
 
-        double[] ret = main.run( type, inputfile);
+        double[] ret = main.run( type, inputfile, quad);
         outputWriterkh.write(inputname);
         for (int j = 0; j < main.nval; j++) {
             outputWriterkh.write(ret[j]+"");
@@ -546,7 +548,7 @@ public class main {
         outputWriterkh.close();
     }
 
-    public static double[] run( String type, String inputfile){
+    public static double[] run( String type, String inputfile, boolean quad){
         double [] ret = new double [main.nval];
 
         ArrayList<Object> param = new ArrayList<>();
@@ -599,31 +601,56 @@ if(type.equalsIgnoreCase("mps") || type.equalsIgnoreCase("dat")){
 
 }
 
+if(!quad) {
 
 
-
-        try{
-            FPAlg alg = new FPAlg(norm.L1_norm);
-            List<Object> res;
-            if(type.equalsIgnoreCase("mps") || type.equalsIgnoreCase("dat")){
-                res = alg.solve(objectives, matrixA, b, lower, upper, directions);
-            }else {
-                res = alg.solve(objectives, matrixA, b, binary, directions);
-            }
-
-            List<Map<String,Double>> Y = (List<Map<String,Double>>)res.get(0);
-            long totnodes =(long) res.get(1);
-            double sec = (double) res.get(2);
-
-            boolean printbool = true;
-            //FPAlg.printFrontierCsv(Y,printbool);
-
-            ret[0] = sec;
-            ret[1] = Y.size();
-            ret[2] = totnodes;
-        }catch(IloException e){
-            e.printStackTrace();
+    try {
+        FPAlg alg = new FPAlg(norm.L1_norm);
+        List<Object> res;
+        if (type.equalsIgnoreCase("mps") || type.equalsIgnoreCase("dat")) {
+            res = alg.solve(objectives, matrixA, b, lower, upper, directions);
+        } else {
+            res = alg.solve(objectives, matrixA, b, binary, directions);
         }
+
+        List<Map<String, Double>> Y = (List<Map<String, Double>>) res.get(0);
+        long totnodes = (long) res.get(1);
+        double sec = (double) res.get(2);
+
+        boolean printbool = true;
+        //FPAlg.printFrontierCsv(Y,printbool);
+
+        ret[0] = sec;
+        ret[1] = Y.size();
+        ret[2] = totnodes;
+    } catch (IloException e) {
+        e.printStackTrace();
+    }
+}else{
+    try {
+        double [][][] qobjs = qobjs(objectives, inputfile);
+        FPAlgQuad alg = new FPAlgQuad(norm.L1_norm);
+        List<Object> res;
+        if (type.equalsIgnoreCase("mps") || type.equalsIgnoreCase("dat")) {
+            res = alg.solve(qobjs, objectives, matrixA, b, lower, upper, directions);
+        } else {
+            res = alg.solve(qobjs, objectives,  matrixA, b, binary, directions);
+        }
+
+        List<Map<String, Double>> Y = (List<Map<String, Double>>) res.get(0);
+        long totnodes = (long) res.get(1);
+        double sec = (double) res.get(2);
+
+        boolean printbool = true;
+        //FPAlg.printFrontierCsv(Y,printbool);
+
+        ret[0] = sec;
+        ret[1] = Y.size();
+        ret[2] = totnodes;
+    } catch (IloException e) {
+        e.printStackTrace();
+    }
+}
         return ret;
     }
 
@@ -826,5 +853,73 @@ if(type.equalsIgnoreCase("mps") || type.equalsIgnoreCase("dat")){
             ret += a[i]*b[i];
         }
         return ret;
+    }
+//pippo
+    /*public static double [][][] qobjs(double [][] objs, String inputname){
+        double [][][] ret = new double [2][2][2];
+
+        ret[0][0][0] = 1d;
+        ret[1][1][1] = 1d;
+
+        return ret ;
+    }*/
+
+    public static double [][][] qobjs(double [][] objs, String inputname){
+        int n = objs.length;
+        int m = objs[0].length;
+
+        double [][][] ret = new double [n][m][m];
+        Random rand = new Random();
+        int hash = inputname.hashCode();
+        System.out.println("Objective generator entered. HashCode: "+hash+" n: "+n+" m: "+m);
+        rand.setSeed(hash);
+        for(int i = 0; i < n; i++){
+            int rank = approx(1,m, rand.nextDouble());
+            System.out.println("                            Rank("+i+"): "+rank);
+            double [][] obj = new double [m][rank];
+            for(int h = 0; h < m; h++){
+                for(int k = 0 ; k< rank ; k++){
+                    obj[h][k] = approx(0,2, rand.nextDouble());
+                }
+            }
+            for(int h = 0; h < m; h++){
+                for(int k = 0 ; k< m ; k++){
+                    double val = 0;
+                    for(int z = 0; z < rank; z++){
+                        val += obj[h][z]*obj[k][z];
+                    }
+                    ret[i][h][k] = val;
+                }
+            }
+            // printMatrix("pippo", ret[i]);
+
+        }
+
+        return ret;
+    }
+    /*public static double [][][] qobjs(double [][] objs, String inputname){
+        int n = objs.length;
+        int m = objs[0].length;
+
+        double [][][] ret = new double [n][m][m];
+        Random rand = new Random();
+        int hash = inputname.hashCode();
+        System.out.println("Objective generator entered. HashCode: "+hash+" n: "+n+" m: "+m);
+        rand.setSeed(hash);
+        for(int i = 0; i < n; i++){
+            for(int j = 0 ; j < m ; j ++){
+                ret[i][j][j] = Math.pow(objs[i][j],2);
+            }
+             //printMatrix("pippo", ret[i]);
+
+        }
+
+        return ret;
+    }*/
+
+    public static  int approx(double low, double up, double val){
+        double ret = val*(up - low) + low;
+        int rret = (int) Math.floor(ret + 0.5);
+        return rret;
     }
 }

@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.ArrayList;
 
-public class FPProblem {
+public class FPProblemLists {
 
     private static long nodes;
     private static long infnodes;
@@ -25,7 +25,7 @@ public class FPProblem {
     private static Map<String, Double> val;
     //public static double eps = 10e-8;
 
-    public FPProblem(double [][] objectives, double [][] matrixA,
+    public FPProblemLists(double [][] objectives, double [][] matrixA,
                      double[] b,boolean[] binary,
                      int norm, int [] directions) throws IloException {
         this.norm = norm;
@@ -34,9 +34,9 @@ public class FPProblem {
         this.basicFilling(objectives,  matrixA, b, binary, directions);
         this.solverSettings();
     }
-    public FPProblem(double [][] objectives, double [][] matrixA,
-                      double[] b,double[] lower, double[] upper,
-                      int norm, int [] directions) throws IloException {
+    public FPProblemLists(double [][] objectives, double [][] matrixA,
+                     double[] b,double[] lower, double[] upper,
+                     int norm, int [] directions) throws IloException {
         this.norm = norm;
         this.nodes = 1;
         this.infnodes = 0;
@@ -44,7 +44,7 @@ public class FPProblem {
         this.solverSettings();
     }
 
-    public FPProblem( FPProblem p, IloAddable con) throws IloException {
+    public FPProblemLists( FPProblemLists p, IloAddable con) throws IloException {
         this.level = p.level + 1;
         this.localconstraint = con;
         this.nodes = this.nodes + 1;
@@ -128,7 +128,7 @@ public class FPProblem {
             if(upper[i] == 1 && lower[i] == 0){
                 this.vars.put(s, this.cplex.boolVar());
             }else {
-               // System.out.println(i+") "+Math.round(upper[i]-1));
+                // System.out.println(i+") "+Math.round(upper[i]-1));
                 this.vars.put(s, this.cplex.intVar((int) Math.floor(lower[i]+0.5),
                         (int) Math.floor(upper[i]+0.5)));
             }
@@ -184,7 +184,7 @@ public class FPProblem {
 
     private boolean setObjective() throws IloException{
 
-         if(this.norm == 1){
+        if(this.norm == 1){
             IloNumExpr expr = this.cplex.linearNumExpr();
             int h = 1;
             for(IloNumExpr obj : this.objectives.values()){
@@ -248,7 +248,7 @@ public class FPProblem {
             ret.add(con);
             this.model.remove(con);
         }
-        //System.out.println(ret.size());
+        System.out.println(ret.size());
         return ret;
     }
 
@@ -272,7 +272,7 @@ public class FPProblem {
         int i = 0;
         for(IloAddable con : cons){
             i++;
-            FPProblem son = new FPProblem( this, con);
+            FPProblemLists son = new FPProblemLists( this, con);
             son.iterate(Y);
             son.refresh();
         }

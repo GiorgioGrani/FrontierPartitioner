@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.ArrayList;
 
-public class FPProblem {
+public class FPProblemQuad {
 
     private static long nodes;
     private static long infnodes;
@@ -25,33 +25,33 @@ public class FPProblem {
     private static Map<String, Double> val;
     //public static double eps = 10e-8;
 
-    public FPProblem(double [][] objectives, double [][] matrixA,
+    public FPProblemQuad(double [][][] objectives, double [][] linobjs,  double [][] matrixA,
                      double[] b,boolean[] binary,
                      int norm, int [] directions) throws IloException {
         this.norm = norm;
         this.nodes = 1;
         this.infnodes = 0;
-        this.basicFilling(objectives,  matrixA, b, binary, directions);
+        this.basicFilling(objectives, linobjs,  matrixA, b, binary, directions);
         this.solverSettings();
     }
-    public FPProblem(double [][] objectives, double [][] matrixA,
-                      double[] b,double[] lower, double[] upper,
-                      int norm, int [] directions) throws IloException {
+    public FPProblemQuad(double [][][] objectives, double [][] linobjs,  double [][] matrixA,
+                     double[] b,double[] lower, double[] upper,
+                     int norm, int [] directions) throws IloException {
         this.norm = norm;
         this.nodes = 1;
         this.infnodes = 0;
-        this.basicFilling(objectives,  matrixA, b, lower, upper, directions);
+        this.basicFilling(objectives, linobjs , matrixA, b, lower, upper, directions);
         this.solverSettings();
     }
 
-    public FPProblem( FPProblem p, IloAddable con) throws IloException {
+    public FPProblemQuad( FPProblemQuad p, IloAddable con) throws IloException {
         this.level = p.level + 1;
         this.localconstraint = con;
         this.nodes = this.nodes + 1;
     }
 
 
-    private void basicFilling(double [][] objectives, double [][] matrixA,
+    private void basicFilling(double [][][] objectives, double [][] linobjs,  double [][] matrixA,
                               double[] b, boolean[] binary, int [] directions) throws IloException{
         this.cplex = new IloCplex();
         this.model = this.cplex.getModel();
@@ -61,7 +61,7 @@ public class FPProblem {
         this.createVariable(objectives[0].length, binary);
         this.val = new TreeMap<>();
         this.objectives = new TreeMap<>();
-        this.createObjectives(objectives);
+        this.createObjectives(objectives, linobjs);
 
 
         //todo eliminare dopo aver generato tutti i file
@@ -81,7 +81,7 @@ public class FPProblem {
         this.level = 0;
         this.setObjective();
     }
-    private void basicFilling(double [][] objectives, double [][] matrixA,
+    private void basicFilling(double [][][] objectives,double [][] linobjs,  double [][] matrixA,
                               double[] b, double[] lower, double[] upper, int [] directions) throws IloException{
         this.cplex = new IloCplex();
         this.model = this.cplex.getModel();
@@ -91,7 +91,7 @@ public class FPProblem {
         this.createVariable(objectives[0].length, lower, upper);
         this.val = new TreeMap<>();
         this.objectives = new TreeMap<>();
-        this.createObjectives(objectives);
+        this.createObjectives(objectives, linobjs);
 
 
         //todo eliminare dopo aver generato tutti i file
@@ -128,7 +128,7 @@ public class FPProblem {
             if(upper[i] == 1 && lower[i] == 0){
                 this.vars.put(s, this.cplex.boolVar());
             }else {
-               // System.out.println(i+") "+Math.round(upper[i]-1));
+                // System.out.println(i+") "+Math.round(upper[i]-1));
                 this.vars.put(s, this.cplex.intVar((int) Math.floor(lower[i]+0.5),
                         (int) Math.floor(upper[i]+0.5)));
             }
@@ -165,13 +165,19 @@ public class FPProblem {
         }
     }
 
-    private void createObjectives(double [][] objectives) throws IloException{
+    private void createObjectives(double [][][] objectives, double [][] linobjs) throws IloException{
         for(int i = 0; i < objectives.length; i++){
             IloNumExpr expr = this.cplex.numExpr();
             int j = 0;
             for(String s : this.vars.keySet()){
-                IloNumExpr ex0 = this.cplex.prod(objectives[i][j], this.vars.get(s));
-                expr = this.cplex.sum(expr,ex0);
+                int k = 0;
+                for(String s2 : this.vars.keySet()) {
+                    IloNumExpr ex0 = this.cplex.prod(objectives[i][j][k], this.vars.get(s),this.vars.get(s2));
+                    expr = this.cplex.sum(expr, ex0);
+                    k++;
+                }
+                IloNumExpr ex1 = this.cplex.prod(linobjs[i][j], this.vars.get(s));
+                expr = this.cplex.sum(expr, ex1);
                 j++;
             }
             IloNumExpr expression = expr;
@@ -184,7 +190,7 @@ public class FPProblem {
 
     private boolean setObjective() throws IloException{
 
-         if(this.norm == 1){
+        if(this.norm == 1){
             IloNumExpr expr = this.cplex.linearNumExpr();
             int h = 1;
             for(IloNumExpr obj : this.objectives.values()){
@@ -272,7 +278,7 @@ public class FPProblem {
         int i = 0;
         for(IloAddable con : cons){
             i++;
-            FPProblem son = new FPProblem( this, con);
+            FPProblemQuad son = new FPProblemQuad( this, con);
             son.iterate(Y);
             son.refresh();
         }

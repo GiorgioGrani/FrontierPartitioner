@@ -10,15 +10,15 @@ import java.util.TreeMap;
 import java.util.concurrent.*;
 
 
-public class FPAlg {
+public class FPAlgQuad {
     private long timemax = Long.MAX_VALUE;
     private norm nmode = norm.L1_norm;
 
-    public FPAlg(){
+    public FPAlgQuad(){
 
     }
 
-    public FPAlg(norm nmode){
+    public FPAlgQuad(norm nmode){
         this.nmode = nmode;
     }
 
@@ -35,14 +35,14 @@ public class FPAlg {
     }
 
 
-    public List<Object> solve(double [][] objectives,
+    public List<Object> solve(double [][][] objectives, double [][] linobjs,
                               double [][] matrixA, double[] b,
                               boolean [] binary, int[] directions
     ) throws IloException{
         int nmodeint = this.codifyNorm();
 
 
-        FPProblem root = new FPProblem(objectives, matrixA, b,binary, nmodeint, directions);
+        FPProblemQuad root = new FPProblemQuad(objectives, linobjs, matrixA, b,binary, nmodeint, directions);
         List<Map<String, Double>> Y = new ArrayList<>();
 
         long start = System.currentTimeMillis();
@@ -57,20 +57,20 @@ public class FPAlg {
         return ret;
     }
 
-    public List<Object> solve(double [][] objectives,
+    public List<Object> solve(double [][][] objectives, double [][] linobjs,
                               double [][] matrixA, double[] b,
                               double[] lower, double[] upper, int [] directions
     ) throws IloException{
         int nmodeint = this.codifyNorm();
 
 
-        FPProblem root = new FPProblem(objectives, matrixA, b, lower, upper, nmodeint, directions);
+        FPProblemQuad root = new FPProblemQuad(objectives,linobjs,  matrixA, b, lower, upper, nmodeint, directions);
         List<Map<String, Double>> Y = new ArrayList<>();
 
         long start = System.currentTimeMillis();
         root.iterate(Y);
         long end = System.currentTimeMillis();
-        //FPAlg.printFrontierCsv(Y,true);
+        //FPAlgQuad.printFrontierCsv(Y,true);
 
         List<Object> ret = new ArrayList<>();
         ret.add(0,Y);
@@ -92,13 +92,13 @@ public class FPAlg {
 //        int nmodeint = this.codifyNorm();
 //
 //
-//        FPProblemLists root = new FPProblemLists(objectives, matrixA, b, lower, upper, nmodeint, directions, vars);
+//        FPProblemQuadLists root = new FPProblemQuadLists(objectives, matrixA, b, lower, upper, nmodeint, directions, vars);
 //        List<Map<String, Double>> Y = new ArrayList<>();
 //
 //        long start = System.currentTimeMillis();
 //        root.iterate(Y);
 //        long end = System.currentTimeMillis();
-//        FPAlg.printFrontierCsv(Y,true);
+//        FPAlgQuad.printFrontierCsv(Y,true);
 //
 //        List<Object> ret = new ArrayList<>();
 //        ret.add(0,Y);
